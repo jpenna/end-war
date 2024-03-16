@@ -6,7 +6,7 @@ tasks:
       curl -L https://foundry.paradigm.xyz | bash
       source ~/.bashrc
       foundryup
-    init: "bun install"
+    init: "npm install"
 
 vscode:
   extensions:
