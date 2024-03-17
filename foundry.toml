@@ -3,15 +3,17 @@
 [profile.default]
   auto_detect_solc = false
   block_timestamp = 1_680_220_800 # March 31, 2023 at 00:00 GMT
+  build_info = true
   bytecode_hash = "none"
   evm_version = "paris"           # See https://www.evmdiff.com/features?name=PUSH0&kind=opcode
+  extra_output = ["storageLayout"]
   fuzz = { runs = 1_000 }
   gas_reports = ["*"]
   optimizer = true
   optimizer_runs = 10_000
   out = "out"
   script = "script"
-  solc = "0.8.23"
+  solc = "0.8.24"
   src = "src"
   test = "test"
 
@@ -20,14 +22,14 @@
   verbosity = 4
 
 [etherscan]
-  arbitrum = { key = "${API_KEY_ARBISCAN}" }
-  avalanche = { key = "${API_KEY_SNOWTRACE}" }
-  bnb_smart_chain = { key = "${API_KEY_BSCSCAN}" }
-  gnosis_chain = { key = "${API_KEY_GNOSISSCAN}" }
-  goerli = { key = "${API_KEY_ETHERSCAN}" }
-  mainnet = { key = "${API_KEY_ETHERSCAN}" }
-  optimism = { key = "${API_KEY_OPTIMISTIC_ETHERSCAN}" }
-  polygon = { key = "${API_KEY_POLYGONSCAN}" }
+  # arbitrum = { key = "${API_KEY_ARBISCAN}" }
+  # avalanche = { key = "${API_KEY_SNOWTRACE}" }
+  # bnb_smart_chain = { key = "${API_KEY_BSCSCAN}" }
+  # gnosis_chain = { key = "${API_KEY_GNOSISSCAN}" }
+  # goerli = { key = "${API_KEY_ETHERSCAN}" }
+  # mainnet = { key = "${API_KEY_ETHERSCAN}" }
+  # optimism = { key = "${API_KEY_OPTIMISTIC_ETHERSCAN}" }
+  # polygon = { key = "${API_KEY_POLYGONSCAN}" }
   sepolia = { key = "${API_KEY_ETHERSCAN}" }
 
 [fmt]
