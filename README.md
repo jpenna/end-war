@@ -10,7 +10,7 @@ It's like a war: everybody involved loses, except for the winning people on top 
 
 ## Development
 
-- [Paul Berg's Template](https://github.com/PaulRBerg/foundry-template)
+This repo used [Paul Berg's Template](https://github.com/PaulRBerg/foundry-template) as template for some good defaults, but I reverted back to Foundry's default Test library (out of PBTests).
 
 ## Run
 

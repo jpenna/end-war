@@ -37,8 +37,8 @@ library World {
         returns (uint64 attackerToll, uint64 defenseToll)
     {
         // Will not overflow, since `population` is uint64 and `power` is uint128
-        uint256 attackForce = attacker.population * attacker.power;
-        uint256 defenseForce = target.population * target.power;
+        uint256 attackForce = uint256(attacker.population) * attacker.power;
+        uint256 defenseForce = uint256(target.population) * target.power;
 
         uint64 diffImpact = uint64(attackForce / defenseForce);
 

@@ -18,4 +18,7 @@ interface GameErrors {
 
     /// @notice Send some value to invest in the territory
     error MissingInvestmentValue();
+
+    /// @notice The minimum war funds required to trigger a war is too low
+    error MinWarFundsTooLow(uint256 min);
 }

@@ -8,7 +8,7 @@ import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import { Options } from "openzeppelin-foundry-upgrades/Options.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-import { EndWarV1 } from "../src/EndWarV1.sol";
+import { EndWarV1, POWER_PER_PERSON, MIN_WAR_FUNDS } from "../src/EndWarV1.sol";
 import { World } from "../src/libs/World.sol";
 import { GameErrors } from "../src/libs/GameErrors.sol";
 import { GameEvents } from "../src/libs/GameEvents.sol";
@@ -80,29 +80,38 @@ contract EndWarTest is Test {
 
     function test_setMinWarFunds() external {
         vm.prank(ownerAddress);
-        endWar.setMinWarFunds(10 gwei);
-        assertEq(endWar.minWarFunds(), 10 gwei);
+        endWar.setMinWarFunds(10 ether);
+        assertEq(endWar.minWarFunds(), 10 ether);
     }
 
-    function test_onlyOwner_setMinWarFunds() external {
+    function test_setMinWarFunds_onlyOwner() external {
         address sender = address(0x1234);
         vm.prank(sender);
         vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, sender));
-        endWar.setMinWarFunds(10 gwei);
+        endWar.setMinWarFunds(10 ether);
+        assertEq(endWar.minWarFunds(), 500_000 gwei);
+    }
+
+    function test_invest_minValue() external payable {
+        vm.prank(ownerAddress);
+        vm.expectRevert(abi.encodeWithSelector(GameErrors.MinWarFundsTooLow.selector, MIN_WAR_FUNDS));
+        endWar.setMinWarFunds(5 gwei);
         assertEq(endWar.minWarFunds(), 500_000 gwei);
     }
 
     function test_invest() external payable {
         endWar.invest{ value: 1 ether }("A");
         World.Territory memory a = endWar.getTerritory("A");
-        assertEq(a.power, 100_000 * 1 gwei + 1 ether);
+        assertEq(a.power, uint128(a.population) * POWER_PER_PERSON + 1 ether);
     }
 
     function test_invest_ifNoValue_reverts() external payable {
         vm.expectRevert(GameErrors.MissingInvestmentValue.selector);
+
         endWar.invest("A");
+
         World.Territory memory a = endWar.getTerritory("A");
-        assertEq(a.power, 100_000 * 1 gwei);
+        assertEq(a.power, uint128(a.population) * POWER_PER_PERSON);
     }
 
     function test_triggerWar() external payable {
@@ -127,16 +136,16 @@ contract EndWarTest is Test {
         World.Territory memory b = endWar.getTerritory("B");
 
         assertEq(a.population, 90_000);
-        assertEq(b.population, 59_654);
+        assertEq(b.population, 71_987);
     }
 
     function test_triggerWar_destroysTerritory() external payable {
         address sender = address(0x1234);
-        vm.deal(sender, 1000 ether);
+        vm.deal(sender, 100_000 ether);
         vm.prank(sender);
         // TODO vm.hoax(sender);
 
-        uint256 warFunds = 1000 ether;
+        uint256 warFunds = 100_000 ether;
 
         string memory attacker = "A";
         string memory target = "B";
