@@ -2,13 +2,16 @@
 pragma solidity >=0.8.24;
 
 import { Test } from "forge-std/Test.sol";
-// import { console2 } from "forge-std/src/console2.sol";
-// import { StdCheats } from "forge-std/src/StdCheats.sol";
+import { console2 } from "forge-std/console2.sol";
+import { StdCheats } from "forge-std/StdCheats.sol";
 import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import { Options } from "openzeppelin-foundry-upgrades/Options.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import { EndWarV1 } from "../src/EndWarV1.sol";
 import { World } from "../src/libs/World.sol";
+import { GameErrors } from "../src/libs/GameErrors.sol";
+import { GameEvents } from "../src/libs/GameEvents.sol";
 
 address constant ownerAddress = address(0x1);
 
@@ -73,5 +76,104 @@ contract EndWarTest is Test {
         neighbors[2] = "D";
         neighbors[3] = "E";
         assertEq(c.neighbors, neighbors);
+    }
+
+    function test_setMinWarFunds() external {
+        vm.prank(ownerAddress);
+        endWar.setMinWarFunds(10 gwei);
+        assertEq(endWar.minWarFunds(), 10 gwei);
+    }
+
+    function test_onlyOwner_setMinWarFunds() external {
+        address sender = address(0x1234);
+        vm.prank(sender);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, sender));
+        endWar.setMinWarFunds(10 gwei);
+        assertEq(endWar.minWarFunds(), 500_000 gwei);
+    }
+
+    function test_invest() external payable {
+        endWar.invest{ value: 1 ether }("A");
+        World.Territory memory a = endWar.getTerritory("A");
+        assertEq(a.power, 100_000 * 1 gwei + 1 ether);
+    }
+
+    function test_invest_ifNoValue_reverts() external payable {
+        vm.expectRevert(GameErrors.MissingInvestmentValue.selector);
+        endWar.invest("A");
+        World.Territory memory a = endWar.getTerritory("A");
+        assertEq(a.power, 100_000 * 1 gwei);
+    }
+
+    function test_triggerWar() external payable {
+        address sender = address(0x1234);
+        vm.deal(sender, 10 ether);
+        vm.prank(sender);
+        // TODO vm.hoax(sender);
+
+        uint256 warFunds = 1 ether;
+
+        string memory attacker = "A";
+        string memory target = "B";
+
+        vm.expectEmit(false, false, false, true);
+        emit GameEvents.TerritoryInvested(attacker, sender, warFunds);
+        vm.expectEmit(false, false, false, true);
+        emit GameEvents.TerritoryAttacked(sender, attacker, target);
+
+        endWar.triggerWar{ value: warFunds }(attacker, target);
+
+        World.Territory memory a = endWar.getTerritory("A");
+        World.Territory memory b = endWar.getTerritory("B");
+
+        assertEq(a.population, 90_000);
+        assertEq(b.population, 59_654);
+    }
+
+    function test_triggerWar_destroysTerritory() external payable {
+        address sender = address(0x1234);
+        vm.deal(sender, 1000 ether);
+        vm.prank(sender);
+        // TODO vm.hoax(sender);
+
+        uint256 warFunds = 1000 ether;
+
+        string memory attacker = "A";
+        string memory target = "B";
+
+        vm.expectEmit(false, false, false, true);
+        emit GameEvents.TerritoryDestroyed(target, sender);
+
+        endWar.triggerWar{ value: warFunds }(attacker, target);
+
+        World.Territory memory a = endWar.getTerritory("A");
+        World.Territory memory b = endWar.getTerritory("B");
+
+        assertEq(a.population, 90_000);
+        assertEq(b.population, 0);
+    }
+
+    function test_triggerWar_ifMissingValue_reverts() external payable {
+        vm.expectRevert(abi.encodeWithSelector(GameErrors.NotEnoughFundsForWar.selector, 0, endWar.minWarFunds()));
+
+        string memory attacker = "A";
+        string memory target = "B";
+        endWar.triggerWar(attacker, target);
+    }
+
+    function test_triggerWar_ifAttackerNotFound_reverts() external payable {
+        string memory attacker = "NOT_FOUND";
+        string memory target = "B";
+
+        vm.expectRevert(abi.encodeWithSelector(GameErrors.TerritoryNotFound.selector, attacker));
+        endWar.triggerWar{ value: 1 ether }(attacker, target);
+    }
+
+    function test_triggerWar_ifTargetNotFound_reverts() external payable {
+        string memory attacker = "A";
+        string memory target = "NOT_FOUND";
+
+        vm.expectRevert(abi.encodeWithSelector(GameErrors.TerritoryNotFound.selector, target));
+        endWar.triggerWar{ value: 1 ether }(attacker, target);
     }
 }

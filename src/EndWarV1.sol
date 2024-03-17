@@ -6,19 +6,17 @@ import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/O
 import { console2 } from "forge-std/console2.sol";
 
 import { World } from "./libs/World.sol";
+import { GameErrors } from "./libs/GameErrors.sol";
+import { GameEvents } from "./libs/GameEvents.sol";
 import { IterableTerritoryMapping } from "./libs/IterableTerritoryMapping.sol";
 
-contract EndWarV1 is Initializable, OwnableUpgradeable {
+contract EndWarV1 is Initializable, OwnableUpgradeable, GameErrors, GameEvents {
     using IterableTerritoryMapping for IterableTerritoryMapping.Map;
     using World for World.Territory;
 
     IterableTerritoryMapping.Map private territories;
     uint256 public totalPopulation;
-
-    /// @notice The territory does not exist or has been destroyed.
-    error TerritoryNotFound(string name);
-    /// @notice The territory does not have enough population to perform the action.
-    error NotEnoughPopulation(uint64 current, uint64 required);
+    uint256 public minWarFunds;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -29,6 +27,7 @@ contract EndWarV1 is Initializable, OwnableUpgradeable {
         __Ownable_init(initialOwner);
 
         initializeTerritories();
+        minWarFunds = 500_000 gwei;
     }
 
     function initializeTerritories() private {
@@ -61,6 +60,7 @@ contract EndWarV1 is Initializable, OwnableUpgradeable {
 
         territory.name = name;
         territory.population = population;
+        territory.power = population * 1 gwei;
 
         for (uint256 i = 0; i < neighbors.length; i++) {
             territory.addNeighbor(territories.get(neighbors[i]));
@@ -69,6 +69,82 @@ contract EndWarV1 is Initializable, OwnableUpgradeable {
         territories.set(name, territory);
 
         totalPopulation += population;
+    }
+
+    function setMinWarFunds(uint256 newMinWarFunds) external onlyOwner {
+        minWarFunds = newMinWarFunds;
+    }
+
+    function invest(string calldata territoryName) external payable {
+        World.Territory storage territory = territories.get(territoryName);
+        if (territory.population == 0) {
+            revert TerritoryNotFound(territoryName);
+        }
+        if (msg.value == 0) {
+            revert MissingInvestmentValue();
+        }
+
+        territory.invest(msg.value);
+    }
+
+    function triggerWar(string memory attackerName, string memory targetName) external payable {
+        uint256 warFunds = msg.value;
+        if (warFunds < minWarFunds) {
+            revert NotEnoughFundsForWar(warFunds, minWarFunds);
+        }
+
+        World.Territory storage attacker = territories.get(attackerName);
+        if (attacker.population == 0) {
+            revert TerritoryNotFound(attackerName);
+        }
+
+        World.Territory storage target = territories.get(targetName);
+        if (target.population == 0) {
+            revert TerritoryNotFound(targetName);
+        }
+
+        if (!attacker.isNeighbor(targetName)) {
+            if (warFunds < minWarFunds * 2) {
+                revert NotEnoughFundsForWar(warFunds, minWarFunds * 2);
+            }
+            // If the attacker is not a neighbor, minWarFunds is used for logistics and other difficulties
+            warFunds = warFunds - minWarFunds;
+        }
+
+        attacker.invest(warFunds);
+        emit TerritoryInvested(attacker.name, msg.sender, warFunds);
+
+        (uint64 attackerToll, uint64 defenseToll) = attacker.attack(target);
+        computeWarResult(attacker, attackerToll, target, defenseToll);
+    }
+
+    function computeWarResult(
+        World.Territory storage attacker,
+        uint64 attackerToll,
+        World.Territory storage target,
+        uint64 defenseToll
+    )
+        private
+    {
+        emit TerritoryAttacked(msg.sender, attacker.name, target.name);
+
+        if (attackerToll > attacker.population) {
+            emit TerritoryDestroyed(attacker.name, msg.sender);
+            attackerToll = attacker.population;
+            territories.remove(attacker.name);
+        } else {
+            attacker.population -= attackerToll;
+        }
+
+        if (defenseToll > target.population) {
+            emit TerritoryDestroyed(target.name, msg.sender);
+            defenseToll = target.population;
+            territories.remove(target.name);
+        } else {
+            target.population -= defenseToll;
+        }
+
+        totalPopulation -= attackerToll + defenseToll;
     }
 
     /**
