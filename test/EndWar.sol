@@ -8,7 +8,7 @@ import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import { Options } from "openzeppelin-foundry-upgrades/Options.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-import { EndWarV1, POWER_PER_PERSON, MIN_WAR_FUNDS } from "../src/EndWarV1.sol";
+import { EndWarV2, POWER_PER_PERSON, MIN_WAR_FUNDS } from "../src/EndWarV2.sol";
 import { World } from "../src/libs/World.sol";
 import { GameErrors } from "../src/libs/GameErrors.sol";
 import { GameEvents } from "../src/libs/GameEvents.sol";
@@ -16,15 +16,15 @@ import { GameEvents } from "../src/libs/GameEvents.sol";
 address constant ownerAddress = address(0x1);
 
 contract EndWarTest is Test {
-  EndWarV1 internal endWar;
+  EndWarV2 internal endWar;
 
   function setUp() public virtual {
     address proxy = Upgrades.deployTransparentProxy(
-      "EndWarV1.sol",
+      "EndWarV2.sol",
       ownerAddress,
-      abi.encodeCall(EndWarV1.initialize, (ownerAddress))
+      abi.encodeCall(EndWarV2.initialize, (ownerAddress))
     );
-    endWar = EndWarV1(proxy);
+    endWar = EndWarV2(proxy);
   }
 
   function test_intialTerritories() external view {
@@ -192,5 +192,11 @@ contract EndWarTest is Test {
 
     vm.expectRevert(abi.encodeWithSelector(GameErrors.TerritoryNotFound.selector, target));
     endWar.triggerWar{ value: 1 ether }(attacker, target);
+  }
+
+  function test_getTerritoryUserFriendly() external view {
+    string memory territory = "A";
+    string memory expected = "Territory A has 100000 people and 100000000 gwei power. Has borders with: B, C";
+    assertEq(endWar.getTerritoryUserFriendly(territory), expected);
   }
 }
