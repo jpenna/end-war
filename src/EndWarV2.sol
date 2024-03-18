@@ -212,5 +212,4 @@ contract EndWarV2 is Initializable, OwnableUpgradeable, GameErrors, GameEvents {
         )
       );
   }
-  // memory expected = "Territory A has 100000 people and 100000000 gwei power. Border with: B, C";
 }
