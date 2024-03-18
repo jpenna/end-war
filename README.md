@@ -1,31 +1,47 @@
 # End War
 
-This is a (stupid) game to try out Solidity capabilities and the Ethereum blockchain. It is deployed to the Sepolia testnet (read more [below](#Verify-on-Etherscan)) and implements the [Proxy Upgrade pattern](https://docs.openzeppelin.com/learn/upgrading-smart-contracts) to allow for upgrades.
+This is a (silly) game to try out Solidity capabilities and the Ethereum blockchain. It is deployed to the Sepolia testnet (read more [below](#Verify-on-Etherscan)) and implements the [Proxy Upgrade pattern](https://docs.openzeppelin.com/learn/upgrading-smart-contracts) to allow for upgrades.
 
 The game simulates a world where wars can be requested by players - to end with the people's peace. Players can spend resources (ETH or other EVM compatible token) to start a war (`triggerWar`) and invest in the power of a territory (`invest`). The game ends if all people die or are part of the same nation, in which case there won't be anything else to do.
 
 All money stored in the contract can only be withdrawn **by the deployer of the contract**. It's like a war: everybody involved loses, except for the winning people on top - in this case, the deployer of the contract.
 
+Events are emitted for war related actions, so it is possible to listen to them and create a front-end for the game.
+
 > **Version 2**
 > 
 > Just to test the deployment of a new version of the contract, I added a `getTerritoryUserFriendly` function that returns all the information about a territory in a user-friendly string.
 
-## API
+## The Game
+
+<img width="705" alt="map" src="./docs/map.png">
+
+This is the map for this world. 
+
+Players can make territories attack a neighbor by paying the `minWarFunds`, which is used to increase the attacking territory's power. 
+Non-neighboring territories can also go into war, but the attacking territory must pay `2 * minWarFunds` and only half of this boosts the attacker's power, the remaining of the funds go to afford the logistics of the war (money lost).
+
+After the battle, the population of both territories is reduced. The targeted territory loses more people in proportion to the power of the attacker.
+
+Check out the API below to understand what else can be done.
+
+### API
 
 The contract has the following public functions:
 
-- `triggerWar`: starts a war in a territory
-- `invest`: invests in a territory
-- `totalPopulation`: returns the total population of the world
-- `getTerritory`: returns the information about a territory
-- `getTerritoryUserFriendly`: returns the information about a territory in a user-friendly string
-- `withdraw`: withdraws all the money from the contract (to the deployer)
+- `triggerWar` [WRITE]: starts a war in between 2 territories
+- `invest` [WRITE]: invests in a territory to increase its power
+- `withdraw` [WRITE]: withdraws all the money from the contract (to the deployer)
+- 
+- `totalPopulation` [READ]: returns the total population of the world
+- `getTerritory` [READ]: returns information about a territory
+- `getTerritoryUserFriendly` [READ]: returns information about a territory in a user-friendly string
 
 The deployer can call the following functions:
 
-- `setMinWarFunds`: sets the minimum funds to start a war
-- `renounceOwnership`: renounces the ownership of the contract
-- `transferOwnership`: transfers the ownership of the contract
+- `setMinWarFunds` [WRITE]: sets the minimum funds to start a war
+- `renounceOwnership` [WRITE]: renounces the ownership of the contract
+- `transferOwnership` [WRITE]: transfers the ownership of the contract
 
 ## Development
 
@@ -126,3 +142,7 @@ You can use Etherscan to interact with the contract. Go to the [Proxy's page](ht
 - On each user interaction, grow the territories's population and start a new war randomly, so the world is always at war. This can be done asynchronously by keeping an incrementing `epoch` and a value for the last time the territory is interacted with. Also add an `updateTerritory` function to update the territory's stats.
 - Keep the wars ongoing (with the use of the `epoch` variable mentioned above) and allow users to invest in the territories to help them win the war or assume defeat.
 - Allow for the rise of new territories out of the ashes of the old ones.
+
+## Bugs (Fixes for a v3)
+
+- The power of the territories is not being updated after a war.
